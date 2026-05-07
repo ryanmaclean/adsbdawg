@@ -1,0 +1,113 @@
+[
+  {
+    "_comment": "Import via: curl -X POST 'https://api.datadoghq.com/api/v1/monitor' -H 'DD-API-KEY: <key>' -H 'DD-APPLICATION-KEY: <app-key>' -d @adsb_monitors.json (one object at a time)",
+    "name": "ADS-B Receiver Offline",
+    "type": "metric alert",
+    "query": "sum(last_5m):sum:adsb.message{*}.as_rate() < 0.5",
+    "message": "**ADS-B receiver is offline** — no messages in 5 minutes.\n\nCheck:\n1. dump1090: `systemctl status dump1090-fa`\n2. adsbdawg: `systemctl status adsbdawg`\n3. RTL-SDR dongle connected?\n4. Pi reachable?\n\n@pagerduty-adsb",
+    "options": {
+      "thresholds": { "critical": 0.5, "warning": 2.0 },
+      "notify_no_data": true,
+      "no_data_timeframe": 10,
+      "new_group_delay": 60,
+      "evaluation_delay": 60
+    },
+    "priority": 1,
+    "tags": ["team:adsb", "component:receiver"]
+  },
+  {
+    "name": "ADS-B Hijack Squawk 7500 Detected",
+    "type": "metric alert",
+    "query": "sum(last_2m):sum:adsb.squawk{squawk:7500}.as_count() > 0",
+    "message": "**HIJACK SQUAWK 7500 DETECTED** in your ADS-B coverage area.\n\nAircraft squawking 7500 indicates an unlawful interference / hijack situation.\n\nMonitor closely and cross-reference with flight tracking services.\n\n@notify-channel",
+    "options": {
+      "thresholds": { "critical": 0 },
+      "notify_no_data": false,
+      "evaluation_delay": 0
+    },
+    "priority": 1,
+    "tags": ["team:adsb", "severity:critical", "type:squawk"]
+  },
+  {
+    "name": "ADS-B General Emergency Squawk 7700 Detected",
+    "type": "metric alert",
+    "query": "sum(last_2m):sum:adsb.squawk{squawk:7700}.as_count() > 0",
+    "message": "**EMERGENCY SQUAWK 7700** detected in ADS-B coverage area.\n\nAircraft declaring a general emergency. @notify-channel",
+    "options": {
+      "thresholds": { "critical": 0 },
+      "notify_no_data": false
+    },
+    "priority": 1,
+    "tags": ["team:adsb", "severity:critical", "type:squawk"]
+  },
+  {
+    "name": "ADS-B Radio Failure Squawk 7600 Detected",
+    "type": "metric alert",
+    "query": "sum(last_2m):sum:adsb.squawk{squawk:7600}.as_count() > 0",
+    "message": "**RADIO FAILURE SQUAWK 7600** detected. Aircraft has lost radio communication. @notify-channel",
+    "options": {
+      "thresholds": { "warning": 0 },
+      "notify_no_data": false
+    },
+    "priority": 2,
+    "tags": ["team:adsb", "severity:warning", "type:squawk"]
+  },
+  {
+    "name": "ADS-B Emergency Flag Active",
+    "type": "metric alert",
+    "query": "sum(last_2m):sum:adsb.emergency{*}.as_count() > 0",
+    "message": "**Aircraft emergency flag** set in ADS-B transponder data. @notify-channel",
+    "options": {
+      "thresholds": { "critical": 0 },
+      "notify_no_data": false
+    },
+    "priority": 1,
+    "tags": ["team:adsb", "severity:critical"]
+  },
+  {
+    "name": "ADS-B Message Rate Anomaly",
+    "type": "metric alert",
+    "query": "avg(last_15m):sum:adsb.message{*}.as_rate() < 2",
+    "message": "**Degraded ADS-B reception** — message rate below 2 msg/sec for 15 minutes.\n\nPossible causes: interference, antenna issue, atmospheric conditions, RTL-SDR thermal throttle.\n\nCheck Pi CPU temperature: `vcgencmd measure_temp`",
+    "options": {
+      "thresholds": { "critical": 2.0, "warning": 5.0 },
+      "notify_no_data": true,
+      "no_data_timeframe": 10
+    },
+    "priority": 2,
+    "tags": ["team:adsb", "component:receiver"]
+  },
+  {
+    "name": "Raspberry Pi CPU Temperature High",
+    "type": "metric alert",
+    "query": "avg(last_5m):avg:system.temperature.cpu{host:pi-adsb} > 75",
+    "message": "**Pi CPU temperature {{value}}°C** is approaching the throttle limit (80°C).\n\nAt 80°C dump1090 will throttle and ADS-B reception will degrade.\n\nCheck: ventilation, case cooling, ambient temperature.",
+    "options": {
+      "thresholds": { "critical": 80.0, "warning": 75.0 }
+    },
+    "priority": 2,
+    "tags": ["team:adsb", "component:hardware"]
+  },
+  {
+    "name": "Raspberry Pi Disk Space Critical",
+    "type": "metric alert",
+    "query": "avg(last_5m):avg:system.disk.in_use{host:pi-adsb,device:/dev/root} > 0.85",
+    "message": "**Pi disk {{value * 100}}% full.** Logs or data may fill the SD card, causing service outage.\n\n`df -h / && journalctl --disk-usage`",
+    "options": {
+      "thresholds": { "critical": 0.95, "warning": 0.85 }
+    },
+    "priority": 2,
+    "tags": ["team:adsb", "component:hardware"]
+  },
+  {
+    "name": "ADS-B Processing Lag High",
+    "type": "metric alert",
+    "query": "avg(last_5m):avg:adsb.message.lag_ms{*} > 5000",
+    "message": "**Message processing lag {{value}}ms** — Pi may be under CPU pressure or dump1090 is buffering.\n\nCheck: `top`, `systemctl status adsbdawg dump1090-fa`",
+    "options": {
+      "thresholds": { "critical": 10000.0, "warning": 5000.0 }
+    },
+    "priority": 3,
+    "tags": ["team:adsb", "component:pipeline"]
+  }
+]

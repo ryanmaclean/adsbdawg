@@ -1,0 +1,34 @@
+[Unit]
+Description=ADSBDawg - Stream ADS-B data to Datadog
+Documentation=https://github.com/ryanmaclean/adsbdawg
+After=network-online.target dump1090-fa.service datadog-agent.service
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/adsbdawg
+EnvironmentFile=-/etc/adsbdawg/env
+ExecStart=/home/pi/adsbdawg/.venv/bin/python /home/pi/adsbdawg/adsb.py
+Restart=always
+RestartSec=10
+TimeoutStartSec=30
+TimeoutStopSec=15
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=adsbdawg
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictNamespaces=true
+ReadWritePaths=/home/pi/adsbdawg
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target
