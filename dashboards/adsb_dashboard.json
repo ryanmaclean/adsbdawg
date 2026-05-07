@@ -1,0 +1,253 @@
+{
+  "title": "ADSB Aircraft Monitoring",
+  "description": "Real-time aircraft telemetry from RTL-SDR dongle via dump1090 and the Datadog DogStatsD agent.",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "## ✈️ ADS-B Aircraft Monitoring\n\nReal-time aircraft telemetry collected from an RTL-SDR (RTL2832U) dongle running dump1090 on a Raspberry Pi.\n\nMetrics are tagged with `icao24`, `callsign`, and `on_ground` for per-aircraft drill-down.",
+        "background_color": "blue",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "tick_pos": "50%",
+        "tick_edge": "left"
+      },
+      "layout": { "x": 0, "y": 0, "width": 6, "height": 2 }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "type": "query_value",
+        "requests": [
+          {
+            "q": "sum:adsb.message{*}.as_count()",
+            "aggregator": "sum"
+          }
+        ],
+        "title": "Total Messages (last hour)",
+        "precision": 0,
+        "time": { "live_span": "1h" }
+      },
+      "layout": { "x": 6, "y": 0, "width": 3, "height": 2 }
+    },
+    {
+      "id": 3,
+      "definition": {
+        "type": "query_value",
+        "requests": [
+          {
+            "q": "count_nonzero(avg:adsb.altitude{*} by {icao24})",
+            "aggregator": "last"
+          }
+        ],
+        "title": "Aircraft in Range",
+        "precision": 0,
+        "time": { "live_span": "10m" }
+      },
+      "layout": { "x": 9, "y": 0, "width": 3, "height": 2 }
+    },
+    {
+      "id": 4,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "sum:adsb.message{*}.as_count()",
+            "display_type": "bars",
+            "style": {
+              "palette": "dog_classic",
+              "line_type": "solid",
+              "line_width": "normal"
+            }
+          }
+        ],
+        "title": "ADS-B Message Rate",
+        "show_legend": false,
+        "yaxis": { "label": "messages/s" }
+      },
+      "layout": { "x": 0, "y": 2, "width": 6, "height": 3 }
+    },
+    {
+      "id": 5,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:adsb.altitude{*} by {callsign}",
+            "display_type": "line",
+            "style": {
+              "palette": "cool",
+              "line_type": "solid",
+              "line_width": "thin"
+            }
+          }
+        ],
+        "title": "Altitude by Aircraft (ft)",
+        "show_legend": true,
+        "yaxis": { "label": "feet" }
+      },
+      "layout": { "x": 6, "y": 2, "width": 6, "height": 3 }
+    },
+    {
+      "id": 6,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:adsb.airspeed{*} by {callsign}",
+            "display_type": "line",
+            "style": {
+              "palette": "warm",
+              "line_type": "solid",
+              "line_width": "thin"
+            }
+          }
+        ],
+        "title": "Ground Speed by Aircraft (knots)",
+        "show_legend": true,
+        "yaxis": { "label": "knots" }
+      },
+      "layout": { "x": 0, "y": 5, "width": 6, "height": 3 }
+    },
+    {
+      "id": 7,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:adsb.ascentrate{*}",
+            "display_type": "line",
+            "style": {
+              "palette": "green",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "metadata": [{ "expression": "avg:adsb.ascentrate{*}", "alias": "Ascent Rate" }]
+          },
+          {
+            "q": "avg:adsb.descentrate{*}",
+            "display_type": "line",
+            "style": {
+              "palette": "red",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "metadata": [{ "expression": "avg:adsb.descentrate{*}", "alias": "Descent Rate" }]
+          }
+        ],
+        "title": "Vertical Rate (ft/min)",
+        "show_legend": true,
+        "yaxis": { "label": "ft/min" }
+      },
+      "layout": { "x": 6, "y": 5, "width": 6, "height": 3 }
+    },
+    {
+      "id": 8,
+      "definition": {
+        "type": "toplist",
+        "requests": [
+          {
+            "q": "top(sum:adsb.message{*} by {callsign}.as_count(), 10, 'sum', 'desc')"
+          }
+        ],
+        "title": "Most Active Aircraft (by message count)"
+      },
+      "layout": { "x": 0, "y": 8, "width": 6, "height": 3 }
+    },
+    {
+      "id": 9,
+      "definition": {
+        "type": "toplist",
+        "requests": [
+          {
+            "q": "top(avg:adsb.altitude{*} by {callsign}, 10, 'mean', 'desc')"
+          }
+        ],
+        "title": "Highest Flying Aircraft (avg altitude, ft)"
+      },
+      "layout": { "x": 6, "y": 8, "width": 6, "height": 3 }
+    },
+    {
+      "id": 10,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "sum:adsb.emergency{*}.as_count()",
+            "display_type": "bars",
+            "style": {
+              "palette": "warm",
+              "line_type": "solid",
+              "line_width": "normal"
+            }
+          }
+        ],
+        "title": "Emergency Squawks Detected",
+        "show_legend": false,
+        "yaxis": { "label": "count" }
+      },
+      "layout": { "x": 0, "y": 11, "width": 4, "height": 3 }
+    },
+    {
+      "id": 11,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:adsb.heading.avg{*}",
+            "display_type": "line",
+            "style": {
+              "palette": "purple",
+              "line_type": "solid",
+              "line_width": "thin"
+            }
+          }
+        ],
+        "title": "Average Heading (degrees)",
+        "show_legend": false,
+        "yaxis": { "label": "degrees", "min": "0", "max": "360" }
+      },
+      "layout": { "x": 4, "y": 11, "width": 4, "height": 3 }
+    },
+    {
+      "id": 12,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "sum:adsb.message{on_ground:true}.as_count()",
+            "display_type": "bars",
+            "style": { "palette": "grey" },
+            "metadata": [{ "expression": "sum:adsb.message{on_ground:true}.as_count()", "alias": "On Ground" }]
+          },
+          {
+            "q": "sum:adsb.message{on_ground:false}.as_count()",
+            "display_type": "bars",
+            "style": { "palette": "cool" },
+            "metadata": [{ "expression": "sum:adsb.message{on_ground:false}.as_count()", "alias": "Airborne" }]
+          }
+        ],
+        "title": "Messages: Airborne vs On Ground",
+        "show_legend": true
+      },
+      "layout": { "x": 8, "y": 11, "width": 4, "height": 3 }
+    }
+  ],
+  "template_variables": [
+    {
+      "name": "callsign",
+      "prefix": "callsign",
+      "default": "*"
+    },
+    {
+      "name": "icao24",
+      "prefix": "icao24",
+      "default": "*"
+    }
+  ],
+  "layout_type": "free",
+  "is_read_only": false,
+  "notify_list": []
+}

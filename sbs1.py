@@ -125,7 +125,7 @@ class SBS1Message (object):
 
     def toJSON(self):
         j = {
-            'timestamp': self.loggedDate.isoformat(),
+            'timestamp': self.loggedDate.isoformat() if self.loggedDate else None,
             'aircraftID': self.aircraftID,
             'squawk': self.squawk,
             'callsign': self.callsign,

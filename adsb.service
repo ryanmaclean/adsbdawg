@@ -1,0 +1,19 @@
+[Unit]
+Description=ADSBDawg - Stream ADS-B data to Datadog
+Documentation=https://github.com/ryanmaclean/adsbdawg
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/adsbdawg
+ExecStart=/usr/bin/python3 /home/pi/adsbdawg/adsb.py --host localhost --port 30003
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=adsbdawg
+
+[Install]
+WantedBy=multi-user.target
