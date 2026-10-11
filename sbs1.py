@@ -57,7 +57,7 @@ class SBS1Message:
         self.lat = self._parse(parts, 14, float)
         self.lon = self._parse(parts, 15, float)
         self.verticalRate = self._parse(parts, 16, int)
-        self.squawk = self._parse(parts, 17, int)
+        self.squawk = self._parseSquawk(parts, 17)
         self.alert = self._parse(parts, 18, lambda x: bool(int(x)))
         self.emergency = self._parse(parts, 19, lambda x: bool(int(x)))
         self.spi = self._parse(parts, 20, lambda x: bool(int(x)))
@@ -71,6 +71,14 @@ class SBS1Message:
             return converter(raw) if converter else raw
         except (ValueError, TypeError, IndexError, AttributeError):
             return None
+
+    def _parseSquawk(self, array, index):
+        # SBS carries four octal digits as text, not a base-8 integer value.
+        # Preserve the historical decimal-digit integer for gauge/JSON users.
+        raw = self._parse(array, index)
+        if raw is None or len(raw) != 4 or any(c not in '01234567' for c in raw):
+            return None
+        return int(raw)
 
     def _parseDateTime(self, array, dateIndex, timeIndex):
         date_str = self._parse(array, dateIndex)

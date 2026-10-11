@@ -104,6 +104,8 @@ def build_tags(msg):
         tags.append(f'on_ground:{str(msg.onGround).lower()}')
     if msg.altitude is not None:
         tags.append(f'altitude_band:{altitude_band(msg.altitude)}')
+    if msg.squawk is not None:
+        tags.append(f'squawk:{msg.squawk:04d}')
     return tags
 
 
@@ -171,12 +173,18 @@ def fetch_loop(skt, args):
 def start_socket(args):
     logging.info("Connecting to %s:%s...", args.host, args.port)
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(30.0)
-    s.connect((args.host, args.port))
-    s.settimeout(None)
-    logging.info("Connected to %s:%s", args.host, args.port)
-    statsd.increment('adsb.connection.established')
-    return s
+    try:
+        # Keep the timeout for reads as well as connection establishment.
+        # fetch_loop discards its buffered stream after any timeout/error.
+        s.settimeout(30.0)
+        s.connect((args.host, args.port))
+        logging.info("Connected to %s:%s", args.host, args.port)
+        statsd.increment('adsb.connection.established')
+        return s
+    except BaseException:
+        # main_loop cannot close this socket until start_socket returns it.
+        s.close()
+        raise
 
 
 def main_loop(args):
@@ -197,7 +205,7 @@ def main_loop(args):
                     skt.close()
                 except Exception as close_error:
                     logging.error("Could not close socket: %s", close_error)
-        delay = min(5 * 2 ** (attempt - 1), 60)
+        delay = min(5 * 2 ** min(attempt - 1, 4), 60)
         logging.info("Connection lost. Retrying in %d seconds...", delay)
         time.sleep(delay)
 

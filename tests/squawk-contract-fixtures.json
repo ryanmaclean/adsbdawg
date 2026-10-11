@@ -1,0 +1,644 @@
+{
+  "schema": "adsbdawg.squawk-contract-fixtures/v1",
+  "status": "SOURCE ONLY — not executed",
+  "head": "cb264f5ed240da2d60ffc1934f71fc04b25dbd5a",
+  "assertion_scope": "The expected_metrics field lists required adsb.message and adsb.squawk calls only; other legitimate metrics are not prohibited.",
+  "cases": [
+    {
+      "id": "squawk-1",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,0000,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": 0,
+        "json_squawk": 0,
+        "squawk_tag": "squawk:0000",
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US",
+              "squawk:0000"
+            ],
+            "forbid_squawk_tag": false
+          },
+          {
+            "method": "gauge",
+            "metric": "adsb.squawk",
+            "value": 0,
+            "required_tags": [
+              "squawk:0000"
+            ]
+          }
+        ],
+        "forbid_squawk_gauge": false
+      }
+    },
+    {
+      "id": "squawk-2",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,0001,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": 1,
+        "json_squawk": 1,
+        "squawk_tag": "squawk:0001",
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US",
+              "squawk:0001"
+            ],
+            "forbid_squawk_tag": false
+          },
+          {
+            "method": "gauge",
+            "metric": "adsb.squawk",
+            "value": 1,
+            "required_tags": [
+              "squawk:0001"
+            ]
+          }
+        ],
+        "forbid_squawk_gauge": false
+      }
+    },
+    {
+      "id": "squawk-3",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,0750,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": 750,
+        "json_squawk": 750,
+        "squawk_tag": "squawk:0750",
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US",
+              "squawk:0750"
+            ],
+            "forbid_squawk_tag": false
+          },
+          {
+            "method": "gauge",
+            "metric": "adsb.squawk",
+            "value": 750,
+            "required_tags": [
+              "squawk:0750"
+            ]
+          }
+        ],
+        "forbid_squawk_gauge": false
+      }
+    },
+    {
+      "id": "squawk-4",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,1200,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": 1200,
+        "json_squawk": 1200,
+        "squawk_tag": "squawk:1200",
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US",
+              "squawk:1200"
+            ],
+            "forbid_squawk_tag": false
+          },
+          {
+            "method": "gauge",
+            "metric": "adsb.squawk",
+            "value": 1200,
+            "required_tags": [
+              "squawk:1200"
+            ]
+          }
+        ],
+        "forbid_squawk_gauge": false
+      }
+    },
+    {
+      "id": "squawk-5",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,7500,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": 7500,
+        "json_squawk": 7500,
+        "squawk_tag": "squawk:7500",
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US",
+              "squawk:7500"
+            ],
+            "forbid_squawk_tag": false
+          },
+          {
+            "method": "gauge",
+            "metric": "adsb.squawk",
+            "value": 7500,
+            "required_tags": [
+              "squawk:7500"
+            ]
+          }
+        ],
+        "forbid_squawk_gauge": false
+      }
+    },
+    {
+      "id": "squawk-6",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,7600,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": 7600,
+        "json_squawk": 7600,
+        "squawk_tag": "squawk:7600",
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US",
+              "squawk:7600"
+            ],
+            "forbid_squawk_tag": false
+          },
+          {
+            "method": "gauge",
+            "metric": "adsb.squawk",
+            "value": 7600,
+            "required_tags": [
+              "squawk:7600"
+            ]
+          }
+        ],
+        "forbid_squawk_gauge": false
+      }
+    },
+    {
+      "id": "squawk-7",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,7700,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": 7700,
+        "json_squawk": 7700,
+        "squawk_tag": "squawk:7700",
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US",
+              "squawk:7700"
+            ],
+            "forbid_squawk_tag": false
+          },
+          {
+            "method": "gauge",
+            "metric": "adsb.squawk",
+            "value": 7700,
+            "required_tags": [
+              "squawk:7700"
+            ]
+          }
+        ],
+        "forbid_squawk_gauge": false
+      }
+    },
+    {
+      "id": "squawk-8",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,7777,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": 7777,
+        "json_squawk": 7777,
+        "squawk_tag": "squawk:7777",
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US",
+              "squawk:7777"
+            ],
+            "forbid_squawk_tag": false
+          },
+          {
+            "method": "gauge",
+            "metric": "adsb.squawk",
+            "value": 7777,
+            "required_tags": [
+              "squawk:7777"
+            ]
+          }
+        ],
+        "forbid_squawk_gauge": false
+      }
+    },
+    {
+      "id": "squawk-9",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,, 0750 ,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": 750,
+        "json_squawk": 750,
+        "squawk_tag": "squawk:0750",
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US",
+              "squawk:0750"
+            ],
+            "forbid_squawk_tag": false
+          },
+          {
+            "method": "gauge",
+            "metric": "adsb.squawk",
+            "value": 750,
+            "required_tags": [
+              "squawk:0750"
+            ]
+          }
+        ],
+        "forbid_squawk_gauge": false
+      }
+    },
+    {
+      "id": "squawk-10",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": null,
+        "json_squawk": null,
+        "squawk_tag": null,
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US"
+            ],
+            "forbid_squawk_tag": true
+          }
+        ],
+        "forbid_squawk_gauge": true
+      }
+    },
+    {
+      "id": "squawk-11",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,750,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": null,
+        "json_squawk": null,
+        "squawk_tag": null,
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US"
+            ],
+            "forbid_squawk_tag": true
+          }
+        ],
+        "forbid_squawk_gauge": true
+      }
+    },
+    {
+      "id": "squawk-12",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,07500,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": null,
+        "json_squawk": null,
+        "squawk_tag": null,
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US"
+            ],
+            "forbid_squawk_tag": true
+          }
+        ],
+        "forbid_squawk_gauge": true
+      }
+    },
+    {
+      "id": "squawk-13",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,1280,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": null,
+        "json_squawk": null,
+        "squawk_tag": null,
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US"
+            ],
+            "forbid_squawk_tag": true
+          }
+        ],
+        "forbid_squawk_gauge": true
+      }
+    },
+    {
+      "id": "squawk-14",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,9999,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": null,
+        "json_squawk": null,
+        "squawk_tag": null,
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US"
+            ],
+            "forbid_squawk_tag": true
+          }
+        ],
+        "forbid_squawk_gauge": true
+      }
+    },
+    {
+      "id": "squawk-15",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,-001,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": null,
+        "json_squawk": null,
+        "squawk_tag": null,
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US"
+            ],
+            "forbid_squawk_tag": true
+          }
+        ],
+        "forbid_squawk_gauge": true
+      }
+    },
+    {
+      "id": "squawk-16",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,+7500,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": null,
+        "json_squawk": null,
+        "squawk_tag": null,
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US"
+            ],
+            "forbid_squawk_tag": true
+          }
+        ],
+        "forbid_squawk_gauge": true
+      }
+    },
+    {
+      "id": "squawk-17",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,7 00,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": null,
+        "json_squawk": null,
+        "squawk_tag": null,
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US"
+            ],
+            "forbid_squawk_tag": true
+          }
+        ],
+        "forbid_squawk_gauge": true
+      }
+    },
+    {
+      "id": "squawk-18",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,7.50,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": null,
+        "json_squawk": null,
+        "squawk_tag": null,
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US"
+            ],
+            "forbid_squawk_tag": true
+          }
+        ],
+        "forbid_squawk_gauge": true
+      }
+    },
+    {
+      "id": "squawk-19",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,７５００,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": null,
+        "json_squawk": null,
+        "squawk_tag": null,
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US"
+            ],
+            "forbid_squawk_tag": true
+          }
+        ],
+        "forbid_squawk_gauge": true
+      }
+    },
+    {
+      "id": "squawk-20",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,٧٥٠٠,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": null,
+        "json_squawk": null,
+        "squawk_tag": null,
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US"
+            ],
+            "forbid_squawk_tag": true
+          }
+        ],
+        "forbid_squawk_gauge": true
+      }
+    },
+    {
+      "id": "squawk-21",
+      "input": "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,abcd,,,,",
+      "expected": {
+        "isValid": true,
+        "squawk": null,
+        "json_squawk": null,
+        "squawk_tag": null,
+        "expected_metrics": [
+          {
+            "method": "increment",
+            "metric": "adsb.message",
+            "times": 1,
+            "required_tags": [
+              "icao24:A1B2C3",
+              "icao_country:US"
+            ],
+            "forbid_squawk_tag": true
+          }
+        ],
+        "forbid_squawk_gauge": true
+      }
+    }
+  ],
+  "sequences": [
+    {
+      "id": "repeated-observations-not-distinct-incidents",
+      "inputs": [
+        "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,7500,,,,",
+        "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,7500,,,,"
+      ],
+      "expected": {
+        "squawk_tagged_message_increments": 2,
+        "numeric_squawk_gauge_values": [
+          7500,
+          7500
+        ]
+      }
+    },
+    {
+      "id": "no-cross-frame-squawk-carry",
+      "inputs": [
+        "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,7700,,,,",
+        "MSG,6,1,1,A1B2C3,1,,,,,,,,,,,,,,,,"
+      ],
+      "expected": {
+        "total_message_increments": 2,
+        "squawk_tagged_message_increments": 1,
+        "numeric_squawk_gauge_values": [
+          7700
+        ]
+      }
+    },
+    {
+      "id": "truncated-no-squawk-field",
+      "inputs": [
+        "MSG,6,1,1,A1B2C3"
+      ],
+      "expected": {
+        "parser_squawk": null,
+        "squawk_tagged_message_increments": 0,
+        "squawk_gauge_calls": 0,
+        "note": "Existing parser accepts MSG prefix despite missing fields; this candidate makes no stronger whole-frame claim."
+      }
+    }
+  ],
+  "query_contract": {
+    "gauge_as_count_forbidden": true,
+    "dashboard_monitor_time_prefix_forbidden": true,
+    "zero_or_no_data_all_clear_forbidden": true,
+    "host_scoped_emergency_widgets": [
+      102,
+      103,
+      104,
+      105
+    ],
+    "host_scoped_receiver_widgets": [
+      201,
+      202,
+      301,
+      302
+    ],
+    "callsign_filter_widgets": [
+      601
+    ],
+    "icao24_grouping_widgets": [
+      401,
+      501,
+      602
+    ],
+    "monitor_count_metric": "adsb.message",
+    "monitor_literal_host": "pi-adsb",
+    "monitors_require_receiver_substitution": true,
+    "conditional_formats_location": "requests[].conditional_formats, never definition.conditional_formats",
+    "disk_notification": "{{value}} reports fractional usage; no arithmetic inside basic variable interpolation"
+  }
+}
