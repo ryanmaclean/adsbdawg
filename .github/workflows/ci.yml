@@ -1,0 +1,52 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  NU_VERSION: "0.117.0"
+  NU_SHA256: "2b808786d44af41170a29f8b9a15b5113bb6ea5dda9221098eca932f8a149924"
+
+jobs:
+  nu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Nushell (MIT), checksum verified
+        run: |
+          set -eu
+          name="nu-${NU_VERSION}-x86_64-unknown-linux-musl"
+          curl -fsSL -o "${RUNNER_TEMP}/${name}.tar.gz" \
+            "https://github.com/nushell/nushell/releases/download/${NU_VERSION}/${name}.tar.gz"
+          echo "${NU_SHA256}  ${RUNNER_TEMP}/${name}.tar.gz" | sha256sum -c -
+          mkdir -p "${RUNNER_TEMP}/nu"
+          tar -xzf "${RUNNER_TEMP}/${name}.tar.gz" -C "${RUNNER_TEMP}/nu"
+          echo "${RUNNER_TEMP}/nu/${name}" >> "$GITHUB_PATH"
+      - name: Install netcat for the wire test
+        run: sudo apt-get install -y --no-install-recommends netcat-openbsd
+      - name: nu-check
+        run: |
+          for f in sbs1.nu adsb.nu setup.nu tests/run.nu; do
+            nu --no-config-file -c "nu-check --debug $f"
+          done
+      - name: Tests (parser, producer, squawk contract, DogStatsD wire)
+        run: nu --no-config-file tests/run.nu
+      - name: Installer dry run
+        run: DD_API_KEY=dummy nu --no-config-file setup.nu --dry-run
+      - name: Shell bootstrap lint
+        run: shellcheck setup-raspberry-pi.sh
+      - name: Pinned digests agree with the release
+        run: |
+          set -eu
+          curl -fsSL -o "${RUNNER_TEMP}/SHA256SUMS" \
+            "https://github.com/nushell/nushell/releases/download/${NU_VERSION}/SHA256SUMS"
+          for target in aarch64-unknown-linux-musl armv7-unknown-linux-musleabihf x86_64-unknown-linux-musl; do
+            sum=$(grep " nu-${NU_VERSION}-${target}.tar.gz\$" "${RUNNER_TEMP}/SHA256SUMS" | cut -d' ' -f1)
+            test -n "$sum"
+            grep -q "$sum" setup-raspberry-pi.sh
+          done

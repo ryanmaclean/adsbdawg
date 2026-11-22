@@ -1,77 +1,58 @@
-#!/usr/bin/env bash
-# setup-raspberry-pi.sh
-# One-shot setup for ADSBDawg on a Raspberry Pi running Raspberry Pi OS (Debian-based).
-# Run as root or with sudo: sudo bash setup-raspberry-pi.sh
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Bootstrap for ADSBDawg on Raspberry Pi OS (Debian based). Run as root:
+#   sudo DD_API_KEY=<key> sh setup-raspberry-pi.sh
+#
+# This file only installs Nushell and hands over to setup.nu. Nushell (MIT) is taken
+# from the official nushell/nushell release at a pinned version, and the tarball is
+# verified against a pinned SHA-256 before anything is extracted or executed.
+# To upgrade: change NU_VERSION and the three digests together (the release publishes
+# them in its SHA256SUMS asset), run `nu setup.nu --dry-run`, commit.
+set -eu
 
-set -euo pipefail
+NU_VERSION=0.117.0
+case "$(uname -m)" in
+  aarch64 | arm64)
+    NU_TARGET=aarch64-unknown-linux-musl
+    NU_SHA256=19966b94ae19f52e2cf0402cb99844ddfa06e2361cf6c77b1b2e29abd17e9188 ;;
+  armv7l | armv8l)
+    NU_TARGET=armv7-unknown-linux-musleabihf
+    NU_SHA256=a0a3706dbf31e2f42c0b6ca7d5e73f671f42cdaf6ef56eaf30779ee3d6770c47 ;;
+  x86_64)
+    NU_TARGET=x86_64-unknown-linux-musl
+    NU_SHA256=2b808786d44af41170a29f8b9a15b5113bb6ea5dda9221098eca932f8a149924 ;;
+  *)
+    echo "ERROR: unsupported architecture $(uname -m)" >&2
+    exit 1 ;;
+esac
 
-INSTALL_DIR="/home/pi/adsbdawg"
-SERVICE_FILE="adsb.service"
-DD_AGENT_CONFIG="/etc/datadog-agent/datadog.yaml"
-
-echo "==> Updating package lists..."
-apt-get update -y
-
-echo "==> Installing RTL-SDR kernel and userspace tools..."
-apt-get install -y rtl-sdr librtlsdr-dev
-
-echo "==> Blacklisting the default DVB-T kernel module (conflicts with RTL-SDR)..."
-if ! grep -q "blacklist dvb_usb_rtl28xxu" /etc/modprobe.d/blacklist-rtl.conf 2>/dev/null; then
-    echo "blacklist dvb_usb_rtl28xxu" >> /etc/modprobe.d/blacklist-rtl.conf
+if [ "$(id -u)" -ne 0 ]; then
+  echo "ERROR: run as root (sudo)." >&2
+  exit 1
 fi
 
-echo "==> Installing dump1090-fa (FlightAware fork)..."
-apt-get install -y dump1090-fa || {
-    echo "dump1090-fa not available via apt. Installing dump1090-mutability..."
-    apt-get install -y dump1090-mutability
-}
+HERE=$(cd "$(dirname "$0")" && pwd)
+NU_DIR="/opt/adsbdawg/nu/$NU_VERSION"
+NU_BIN="$NU_DIR/nu"
+NU_NAME="nu-$NU_VERSION-$NU_TARGET"
 
-echo "==> Installing Python 3 and pip..."
-apt-get install -y python3 python3-pip
-
-echo "==> Installing ADSBDawg Python dependencies..."
-if [ -d "$INSTALL_DIR" ]; then
-    pip3 install -r "$INSTALL_DIR/requirements.txt"
-else
-    echo "WARNING: $INSTALL_DIR not found. Clone the repo there and re-run."
+if [ ! -x "$NU_BIN" ] || [ "$("$NU_BIN" --version 2>/dev/null || true)" != "$NU_VERSION" ]; then
+  command -v curl >/dev/null 2>&1 || {
+    apt-get update
+    apt-get install -y --no-install-recommends curl ca-certificates
+  }
+  TMP=$(mktemp -d)
+  trap 'rm -rf "$TMP"' EXIT
+  echo "==> Downloading Nushell $NU_VERSION ($NU_TARGET)"
+  curl --proto '=https' --tlsv1.2 -fsSL -o "$TMP/$NU_NAME.tar.gz" \
+    "https://github.com/nushell/nushell/releases/download/$NU_VERSION/$NU_NAME.tar.gz"
+  echo "$NU_SHA256  $TMP/$NU_NAME.tar.gz" | sha256sum -c - || {
+    echo "ERROR: Nushell checksum mismatch; refusing to run it." >&2
+    exit 1
+  }
+  tar -xzf "$TMP/$NU_NAME.tar.gz" -C "$TMP"
+  mkdir -p "$NU_DIR"
+  install -m 0755 "$TMP/$NU_NAME/nu" "$NU_BIN"
 fi
 
-echo "==> Installing Datadog Agent..."
-if ! command -v datadog-agent &>/dev/null; then
-    DD_AGENT_MAJOR_VERSION=7 \
-    DD_API_KEY="${DD_API_KEY:-YOUR_DATADOG_API_KEY}" \
-    bash -c "$(curl -L https://s3.amazonaws.com/dd-agent-bootstrap/datadog-install-script.sh)"
-else
-    echo "Datadog Agent already installed, skipping."
-fi
-
-echo "==> Enabling DogStatsD in Datadog Agent config..."
-if [ -f "$DD_AGENT_CONFIG" ]; then
-    if grep -q "# dogstatsd_non_local_traffic:" "$DD_AGENT_CONFIG"; then
-        sed -i 's/# dogstatsd_non_local_traffic: false/dogstatsd_non_local_traffic: false/' "$DD_AGENT_CONFIG"
-    fi
-    echo "DogStatsD is enabled on 127.0.0.1:8125 by default."
-fi
-
-echo "==> Installing and enabling the adsbdawg systemd service..."
-if [ -f "$INSTALL_DIR/$SERVICE_FILE" ]; then
-    cp "$INSTALL_DIR/$SERVICE_FILE" /etc/systemd/system/adsbdawg.service
-    systemctl daemon-reload
-    systemctl enable adsbdawg.service
-    systemctl start adsbdawg.service
-    echo "adsbdawg service started."
-else
-    echo "WARNING: $INSTALL_DIR/$SERVICE_FILE not found. Start manually with:"
-    echo "  python3 $INSTALL_DIR/adsb.py"
-fi
-
-echo ""
-echo "==> Setup complete!"
-echo ""
-echo "Next steps:"
-echo "  1. Verify dump1090 is running:  systemctl status dump1090-fa"
-echo "  2. Check adsbdawg service:      systemctl status adsbdawg"
-echo "  3. Check Datadog Agent:         systemctl status datadog-agent"
-echo "  4. Import dashboards/adsb_dashboard.json into Datadog:"
-echo "     Dashboards > New Dashboard > Import JSON"
-echo ""
+exec "$NU_BIN" --no-config-file "$HERE/setup.nu" --nu-bin "$NU_BIN" "$@"

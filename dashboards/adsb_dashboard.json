@@ -1,238 +1,915 @@
 {
   "title": "ADSB Aircraft Monitoring",
-  "description": "Real-time aircraft telemetry from RTL-SDR dongle via dump1090 and the Datadog DogStatsD agent.",
+  "description": "Real-time aircraft telemetry from RTL-SDR dongle via dump1090. Includes receiver health, flight tracking, coverage analysis, squawk alerts, and Raspberry Pi system health. Aircraft panels filter current-frame ICAO24/country/host; callsign only filters the callsign-bearing frame table. Receiver and emergency panels use host only. Select the actual receiver host; no-data is not an all-clear.",
   "widgets": [
     {
-      "id": 1,
+      "id": 101,
       "definition": {
         "type": "note",
-        "content": "## ✈️ ADS-B Aircraft Monitoring\n\nReal-time aircraft telemetry collected from an RTL-SDR (RTL2832U) dongle running dump1090 on a Raspberry Pi.\n\nMetrics are tagged with `icao24`, `callsign`, and `on_ground` for per-aircraft drill-down.",
-        "background_color": "blue",
+        "content": "## Received emergency observations\n\nCounts are received frames in the selected time window, not unique incidents or current aircraft state. Zero or no data cannot establish an all-clear. These cards and receiver-health panels use only the host filter; aircraft filters apply to aircraft panels below.",
+        "background_color": "yellow",
         "font_size": "14",
         "text_align": "left",
-        "show_tick": false,
-        "tick_pos": "50%",
-        "tick_edge": "left"
+        "show_tick": false
       },
-      "layout": { "x": 0, "y": 0, "width": 6, "height": 2 }
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 1
+      }
     },
     {
-      "id": 2,
+      "id": 102,
       "definition": {
         "type": "query_value",
         "requests": [
           {
-            "q": "sum:adsb.message{*}.as_count()",
-            "aggregator": "sum"
+            "q": "sum:adsb.message{squawk:7500,$host}.as_count()",
+            "aggregator": "sum",
+            "conditional_formats": [
+              {
+                "comparator": ">",
+                "value": 0,
+                "palette": "white_on_red"
+              }
+            ]
           }
         ],
-        "title": "Total Messages (last hour)",
+        "title": "Received 7500 frames",
         "precision": 0,
-        "time": { "live_span": "1h" }
+        "custom_unit": "frames"
       },
-      "layout": { "x": 6, "y": 0, "width": 3, "height": 2 }
+      "layout": {
+        "x": 0,
+        "y": 1,
+        "width": 3,
+        "height": 2
+      }
     },
     {
-      "id": 3,
+      "id": 103,
       "definition": {
         "type": "query_value",
         "requests": [
           {
-            "q": "count_nonzero(avg:adsb.altitude{*} by {icao24})",
-            "aggregator": "last"
+            "q": "sum:adsb.message{squawk:7700,$host}.as_count()",
+            "aggregator": "sum",
+            "conditional_formats": [
+              {
+                "comparator": ">",
+                "value": 0,
+                "palette": "white_on_red"
+              }
+            ]
           }
         ],
-        "title": "Aircraft in Range",
+        "title": "Received 7700 frames",
         "precision": 0,
-        "time": { "live_span": "10m" }
+        "custom_unit": "frames"
       },
-      "layout": { "x": 9, "y": 0, "width": 3, "height": 2 }
+      "layout": {
+        "x": 3,
+        "y": 1,
+        "width": 3,
+        "height": 2
+      }
     },
     {
-      "id": 4,
+      "id": 104,
+      "definition": {
+        "type": "query_value",
+        "requests": [
+          {
+            "q": "sum:adsb.message{squawk:7600,$host}.as_count()",
+            "aggregator": "sum",
+            "conditional_formats": [
+              {
+                "comparator": ">",
+                "value": 0,
+                "palette": "white_on_yellow"
+              }
+            ]
+          }
+        ],
+        "title": "Received 7600 frames",
+        "precision": 0,
+        "custom_unit": "frames"
+      },
+      "layout": {
+        "x": 6,
+        "y": 1,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 105,
       "definition": {
         "type": "timeseries",
         "requests": [
           {
-            "q": "sum:adsb.message{*}.as_count()",
+            "q": "sum:adsb.emergency{$host}.as_count()",
             "display_type": "bars",
             "style": {
-              "palette": "dog_classic",
-              "line_type": "solid",
-              "line_width": "normal"
+              "palette": "warm"
             }
           }
         ],
-        "title": "ADS-B Message Rate",
-        "show_legend": false,
-        "yaxis": { "label": "messages/s" }
+        "title": "Received Frames with Emergency Flag",
+        "show_legend": false
       },
-      "layout": { "x": 0, "y": 2, "width": 6, "height": 3 }
+      "layout": {
+        "x": 9,
+        "y": 1,
+        "width": 3,
+        "height": 2
+      }
     },
     {
-      "id": 5,
+      "id": 201,
+      "definition": {
+        "type": "query_value",
+        "requests": [
+          {
+            "q": "avg:adsb.aircraft.active{$host}",
+            "aggregator": "last",
+            "conditional_formats": [
+              {
+                "comparator": ">",
+                "value": 20,
+                "palette": "white_on_green"
+              },
+              {
+                "comparator": ">",
+                "value": 5,
+                "palette": "white_on_yellow"
+              },
+              {
+                "comparator": "<=",
+                "value": 5,
+                "palette": "white_on_red"
+              }
+            ]
+          }
+        ],
+        "title": "✈️ Aircraft in Range",
+        "precision": 0
+      },
+      "layout": {
+        "x": 0,
+        "y": 3,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 202,
+      "definition": {
+        "type": "query_value",
+        "requests": [
+          {
+            "q": "sum:adsb.message{$host}.as_rate()",
+            "aggregator": "avg",
+            "conditional_formats": [
+              {
+                "comparator": ">",
+                "value": 5,
+                "palette": "white_on_green"
+              },
+              {
+                "comparator": ">",
+                "value": 1,
+                "palette": "white_on_yellow"
+              },
+              {
+                "comparator": "<=",
+                "value": 1,
+                "palette": "white_on_red"
+              }
+            ]
+          }
+        ],
+        "title": "📡 Messages / sec",
+        "precision": 1
+      },
+      "layout": {
+        "x": 3,
+        "y": 3,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 203,
+      "definition": {
+        "type": "query_value",
+        "requests": [
+          {
+            "q": "max:adsb.range_nm{$host,$icao24,$country}",
+            "aggregator": "max"
+          }
+        ],
+        "title": "Max Range in Selected Window (NM)",
+        "precision": 0,
+        "custom_unit": "nm"
+      },
+      "layout": {
+        "x": 6,
+        "y": 3,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 204,
+      "definition": {
+        "type": "query_value",
+        "requests": [
+          {
+            "q": "avg:adsb.altitude{$host,$icao24,$country}",
+            "aggregator": "avg"
+          }
+        ],
+        "title": "✈ Avg Altitude (ft)",
+        "precision": 0,
+        "custom_unit": "ft"
+      },
+      "layout": {
+        "x": 9,
+        "y": 3,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 301,
       "definition": {
         "type": "timeseries",
         "requests": [
           {
-            "q": "avg:adsb.altitude{*} by {callsign}",
+            "q": "sum:adsb.message{$host}.as_rate()",
+            "display_type": "line",
+            "style": {
+              "palette": "dog_classic",
+              "line_width": "normal"
+            },
+            "metadata": [
+              {
+                "expression": "sum:adsb.message{$host}.as_rate()",
+                "alias": "msg/sec"
+              }
+            ]
+          }
+        ],
+        "title": "Message Rate — Receiver Health (msg/sec)",
+        "show_legend": false,
+        "yaxis": {
+          "label": "msg/sec",
+          "min": "0"
+        },
+        "markers": [
+          {
+            "value": "y = 1",
+            "display_type": "error dashed",
+            "label": "min healthy"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 5,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 302,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:adsb.aircraft.active{$host}",
+            "display_type": "area",
+            "style": {
+              "palette": "cool"
+            }
+          }
+        ],
+        "title": "Active Aircraft (5-min rolling window)",
+        "show_legend": false,
+        "yaxis": {
+          "label": "aircraft",
+          "min": "0"
+        }
+      },
+      "layout": {
+        "x": 6,
+        "y": 5,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 401,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:adsb.altitude{$host,$icao24,$country} by {icao24}",
             "display_type": "line",
             "style": {
               "palette": "cool",
-              "line_type": "solid",
               "line_width": "thin"
             }
           }
         ],
-        "title": "Altitude by Aircraft (ft)",
+        "title": "Altitude by ICAO24 (ft)",
         "show_legend": true,
-        "yaxis": { "label": "feet" }
+        "yaxis": {
+          "label": "feet"
+        }
       },
-      "layout": { "x": 6, "y": 2, "width": 6, "height": 3 }
+      "layout": {
+        "x": 0,
+        "y": 8,
+        "width": 6,
+        "height": 3
+      }
     },
     {
-      "id": 6,
+      "id": 402,
+      "definition": {
+        "type": "distribution",
+        "requests": [
+          {
+            "q": "avg:adsb.altitude{$host,$icao24,$country}",
+            "style": {
+              "palette": "cool"
+            }
+          }
+        ],
+        "title": "Altitude Distribution (ft) — Bimodal: approach vs cruise",
+        "show_legend": false,
+        "xaxis": {
+          "label": "feet"
+        }
+      },
+      "layout": {
+        "x": 6,
+        "y": 8,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 403,
       "definition": {
         "type": "timeseries",
         "requests": [
           {
-            "q": "avg:adsb.airspeed{*} by {callsign}",
+            "q": "sum:adsb.message{altitude_band:surface,$host,$icao24,$country}.as_rate()",
+            "display_type": "area",
+            "style": {
+              "palette": "grey"
+            },
+            "metadata": [
+              {
+                "expression": "sum:adsb.message{altitude_band:surface,$host,$icao24,$country}.as_rate()",
+                "alias": "Surface (<1k ft)"
+              }
+            ]
+          },
+          {
+            "q": "sum:adsb.message{altitude_band:approach,$host,$icao24,$country}.as_rate()",
+            "display_type": "area",
+            "style": {
+              "palette": "warm"
+            },
+            "metadata": [
+              {
+                "expression": "sum:adsb.message{altitude_band:approach,$host,$icao24,$country}.as_rate()",
+                "alias": "Approach (1k–10k ft)"
+              }
+            ]
+          },
+          {
+            "q": "sum:adsb.message{altitude_band:transition,$host,$icao24,$country}.as_rate()",
+            "display_type": "area",
+            "style": {
+              "palette": "yellow"
+            },
+            "metadata": [
+              {
+                "expression": "sum:adsb.message{altitude_band:transition,$host,$icao24,$country}.as_rate()",
+                "alias": "Transition (10k–18k ft)"
+              }
+            ]
+          },
+          {
+            "q": "sum:adsb.message{altitude_band:cruise_low,$host,$icao24,$country}.as_rate()",
+            "display_type": "area",
+            "style": {
+              "palette": "cool"
+            },
+            "metadata": [
+              {
+                "expression": "sum:adsb.message{altitude_band:cruise_low,$host,$icao24,$country}.as_rate()",
+                "alias": "Cruise Low (18k–35k ft)"
+              }
+            ]
+          },
+          {
+            "q": "sum:adsb.message{altitude_band:cruise_high,$host,$icao24,$country}.as_rate()",
+            "display_type": "area",
+            "style": {
+              "palette": "purple"
+            },
+            "metadata": [
+              {
+                "expression": "sum:adsb.message{altitude_band:cruise_high,$host,$icao24,$country}.as_rate()",
+                "alias": "Cruise High (>35k ft)"
+              }
+            ]
+          }
+        ],
+        "title": "Traffic by Altitude Band (stacked)",
+        "show_legend": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 11,
+        "width": 12,
+        "height": 3
+      }
+    },
+    {
+      "id": 501,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:adsb.airspeed{$host,$icao24,$country} by {icao24}",
             "display_type": "line",
             "style": {
               "palette": "warm",
-              "line_type": "solid",
               "line_width": "thin"
             }
           }
         ],
-        "title": "Ground Speed by Aircraft (knots)",
+        "title": "Ground Speed by ICAO24 (knots)",
         "show_legend": true,
-        "yaxis": { "label": "knots" }
+        "yaxis": {
+          "label": "knots"
+        }
       },
-      "layout": { "x": 0, "y": 5, "width": 6, "height": 3 }
+      "layout": {
+        "x": 0,
+        "y": 14,
+        "width": 6,
+        "height": 3
+      }
     },
     {
-      "id": 7,
+      "id": 502,
+      "definition": {
+        "type": "distribution",
+        "requests": [
+          {
+            "q": "avg:adsb.airspeed{$host,$icao24,$country}",
+            "style": {
+              "palette": "warm"
+            }
+          }
+        ],
+        "title": "Airspeed Distribution (knots) — GA vs jets",
+        "show_legend": false
+      },
+      "layout": {
+        "x": 6,
+        "y": 14,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 503,
+      "definition": {
+        "type": "distribution",
+        "requests": [
+          {
+            "q": "avg:adsb.heading.avg{$host,$icao24,$country}",
+            "style": {
+              "palette": "purple"
+            }
+          }
+        ],
+        "title": "Heading Distribution (0–360°) — Reveals active runway",
+        "show_legend": false,
+        "xaxis": {
+          "label": "degrees",
+          "min": "0",
+          "max": "360"
+        }
+      },
+      "layout": {
+        "x": 0,
+        "y": 17,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 504,
       "definition": {
         "type": "timeseries",
         "requests": [
           {
-            "q": "avg:adsb.ascentrate{*}",
+            "q": "avg:adsb.ascentrate{$host,$icao24,$country}",
             "display_type": "line",
             "style": {
-              "palette": "green",
-              "line_type": "solid",
-              "line_width": "normal"
+              "palette": "green"
             },
-            "metadata": [{ "expression": "avg:adsb.ascentrate{*}", "alias": "Ascent Rate" }]
+            "metadata": [
+              {
+                "expression": "avg:adsb.ascentrate{$host,$icao24,$country}",
+                "alias": "Ascent (fpm)"
+              }
+            ]
           },
           {
-            "q": "avg:adsb.descentrate{*}",
+            "q": "avg:adsb.descentrate{$host,$icao24,$country}",
             "display_type": "line",
             "style": {
-              "palette": "red",
-              "line_type": "solid",
-              "line_width": "normal"
+              "palette": "red"
             },
-            "metadata": [{ "expression": "avg:adsb.descentrate{*}", "alias": "Descent Rate" }]
+            "metadata": [
+              {
+                "expression": "avg:adsb.descentrate{$host,$icao24,$country}",
+                "alias": "Descent (fpm)"
+              }
+            ]
           }
         ],
-        "title": "Vertical Rate (ft/min)",
-        "show_legend": true,
-        "yaxis": { "label": "ft/min" }
+        "title": "Vertical Rate — Ascent vs Descent (ft/min)",
+        "show_legend": true
       },
-      "layout": { "x": 6, "y": 5, "width": 6, "height": 3 }
+      "layout": {
+        "x": 6,
+        "y": 17,
+        "width": 6,
+        "height": 3
+      }
     },
     {
-      "id": 8,
+      "id": 601,
       "definition": {
         "type": "toplist",
         "requests": [
           {
-            "q": "top(sum:adsb.message{*} by {callsign}.as_count(), 10, 'sum', 'desc')"
+            "q": "top(sum:adsb.message{$host,$icao24,$country,$callsign} by {callsign}.as_count(), 20, 'sum', 'desc')"
           }
         ],
-        "title": "Most Active Aircraft (by message count)"
+        "title": "Callsign-bearing Frames (no cross-frame enrichment)"
       },
-      "layout": { "x": 0, "y": 8, "width": 6, "height": 3 }
+      "layout": {
+        "x": 0,
+        "y": 20,
+        "width": 4,
+        "height": 4
+      }
     },
     {
-      "id": 9,
+      "id": 602,
       "definition": {
         "type": "toplist",
         "requests": [
           {
-            "q": "top(avg:adsb.altitude{*} by {callsign}, 10, 'mean', 'desc')"
+            "q": "top(avg:adsb.altitude{$host,$icao24,$country} by {icao24}, 20, 'mean', 'desc')"
           }
         ],
-        "title": "Highest Flying Aircraft (avg altitude, ft)"
+        "title": "Highest Aircraft by ICAO24 (avg altitude, ft)"
       },
-      "layout": { "x": 6, "y": 8, "width": 6, "height": 3 }
+      "layout": {
+        "x": 4,
+        "y": 20,
+        "width": 4,
+        "height": 4
+      }
     },
     {
-      "id": 10,
+      "id": 603,
+      "definition": {
+        "type": "toplist",
+        "requests": [
+          {
+            "q": "top(sum:adsb.message{$host,$icao24,$country} by {icao_country}.as_count(), 15, 'sum', 'desc')"
+          }
+        ],
+        "title": "Fleet by Country (ICAO24 registration)"
+      },
+      "layout": {
+        "x": 8,
+        "y": 20,
+        "width": 4,
+        "height": 4
+      }
+    },
+    {
+      "id": 701,
       "definition": {
         "type": "timeseries",
         "requests": [
           {
-            "q": "sum:adsb.emergency{*}.as_count()",
-            "display_type": "bars",
-            "style": {
-              "palette": "warm",
-              "line_type": "solid",
-              "line_width": "normal"
-            }
-          }
-        ],
-        "title": "Emergency Squawks Detected",
-        "show_legend": false,
-        "yaxis": { "label": "count" }
-      },
-      "layout": { "x": 0, "y": 11, "width": 4, "height": 3 }
-    },
-    {
-      "id": 11,
-      "definition": {
-        "type": "timeseries",
-        "requests": [
-          {
-            "q": "avg:adsb.heading.avg{*}",
+            "q": "max:adsb.range_nm{$host,$icao24,$country}",
             "display_type": "line",
             "style": {
-              "palette": "purple",
-              "line_type": "solid",
-              "line_width": "thin"
-            }
+              "palette": "cool"
+            },
+            "metadata": [
+              {
+                "expression": "max:adsb.range_nm{$host,$icao24,$country}",
+                "alias": "Max Range"
+              }
+            ]
+          },
+          {
+            "q": "avg:adsb.range_nm{$host,$icao24,$country}",
+            "display_type": "line",
+            "style": {
+              "palette": "grey"
+            },
+            "metadata": [
+              {
+                "expression": "avg:adsb.range_nm{$host,$icao24,$country}",
+                "alias": "Avg Range"
+              }
+            ]
           }
         ],
-        "title": "Average Heading (degrees)",
-        "show_legend": false,
-        "yaxis": { "label": "degrees", "min": "0", "max": "360" }
+        "title": "Reception Range (nautical miles) — requires --receiver-lat/lon",
+        "show_legend": true,
+        "yaxis": {
+          "label": "nm",
+          "min": "0"
+        }
       },
-      "layout": { "x": 4, "y": 11, "width": 4, "height": 3 }
+      "layout": {
+        "x": 0,
+        "y": 24,
+        "width": 6,
+        "height": 3
+      }
     },
     {
-      "id": 12,
+      "id": 702,
       "definition": {
         "type": "timeseries",
         "requests": [
           {
-            "q": "sum:adsb.message{on_ground:true}.as_count()",
-            "display_type": "bars",
-            "style": { "palette": "grey" },
-            "metadata": [{ "expression": "sum:adsb.message{on_ground:true}.as_count()", "alias": "On Ground" }]
+            "q": "sum:adsb.message{on_ground:false,$host,$icao24,$country}.as_rate()",
+            "display_type": "area",
+            "style": {
+              "palette": "cool"
+            },
+            "metadata": [
+              {
+                "expression": "sum:adsb.message{on_ground:false,$host,$icao24,$country}.as_rate()",
+                "alias": "Airborne"
+              }
+            ]
           },
           {
-            "q": "sum:adsb.message{on_ground:false}.as_count()",
-            "display_type": "bars",
-            "style": { "palette": "cool" },
-            "metadata": [{ "expression": "sum:adsb.message{on_ground:false}.as_count()", "alias": "Airborne" }]
+            "q": "sum:adsb.message{on_ground:true,$host,$icao24,$country}.as_rate()",
+            "display_type": "area",
+            "style": {
+              "palette": "grey"
+            },
+            "metadata": [
+              {
+                "expression": "sum:adsb.message{on_ground:true,$host,$icao24,$country}.as_rate()",
+                "alias": "On Ground"
+              }
+            ]
           }
         ],
         "title": "Messages: Airborne vs On Ground",
         "show_legend": true
       },
-      "layout": { "x": 8, "y": 11, "width": 4, "height": 3 }
+      "layout": {
+        "x": 6,
+        "y": 24,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 703,
+      "definition": {
+        "type": "toplist",
+        "requests": [
+          {
+            "q": "top(sum:adsb.message{squawk:*,$host,$icao24,$country} by {squawk}.as_count(), 20, 'sum', 'desc')"
+          }
+        ],
+        "title": "Received Squawk-bearing Frames by Code"
+      },
+      "layout": {
+        "x": 0,
+        "y": 27,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 704,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:adsb.message.lag_ms{$host,$icao24,$country}",
+            "display_type": "line",
+            "style": {
+              "palette": "purple"
+            }
+          }
+        ],
+        "title": "Message Processing Lag (loggedDate − generatedDate, ms)",
+        "show_legend": false,
+        "yaxis": {
+          "label": "ms",
+          "min": "0"
+        }
+      },
+      "layout": {
+        "x": 6,
+        "y": 27,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 801,
+      "definition": {
+        "type": "note",
+        "content": "## 🖥️ Raspberry Pi System Health",
+        "background_color": "blue",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false
+      },
+      "layout": {
+        "x": 0,
+        "y": 30,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 802,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:system.cpu.user{$host}",
+            "display_type": "area",
+            "style": {
+              "palette": "warm"
+            },
+            "metadata": [
+              {
+                "expression": "avg:system.cpu.user{$host}",
+                "alias": "CPU User %"
+              }
+            ]
+          },
+          {
+            "q": "avg:system.cpu.iowait{$host}",
+            "display_type": "area",
+            "style": {
+              "palette": "grey"
+            },
+            "metadata": [
+              {
+                "expression": "avg:system.cpu.iowait{$host}",
+                "alias": "CPU IOWait %"
+              }
+            ]
+          }
+        ],
+        "title": "Pi CPU Usage",
+        "show_legend": true,
+        "yaxis": {
+          "label": "%",
+          "min": "0",
+          "max": "100"
+        }
+      },
+      "layout": {
+        "x": 0,
+        "y": 31,
+        "width": 3,
+        "height": 3
+      }
+    },
+    {
+      "id": 803,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:system.mem.pct_usable{$host} * 100",
+            "display_type": "line",
+            "style": {
+              "palette": "dog_classic"
+            }
+          }
+        ],
+        "title": "Pi Memory Available %",
+        "show_legend": false,
+        "yaxis": {
+          "label": "%",
+          "min": "0",
+          "max": "100"
+        }
+      },
+      "layout": {
+        "x": 3,
+        "y": 31,
+        "width": 3,
+        "height": 3
+      }
+    },
+    {
+      "id": 804,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:system.temperature.cpu{$host}",
+            "display_type": "line",
+            "style": {
+              "palette": "warm"
+            }
+          }
+        ],
+        "title": "Pi CPU Temperature (°C) — throttle at 80°C",
+        "show_legend": false,
+        "yaxis": {
+          "label": "°C"
+        },
+        "markers": [
+          {
+            "value": "y = 80",
+            "display_type": "error dashed",
+            "label": "throttle limit"
+          },
+          {
+            "value": "y = 75",
+            "display_type": "warning dashed",
+            "label": "warning"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 31,
+        "width": 3,
+        "height": 3
+      }
+    },
+    {
+      "id": 805,
+      "definition": {
+        "type": "query_value",
+        "requests": [
+          {
+            "q": "avg:system.disk.in_use{device:/dev/root,$host} * 100",
+            "aggregator": "last",
+            "conditional_formats": [
+              {
+                "comparator": ">",
+                "value": 95,
+                "palette": "white_on_red"
+              },
+              {
+                "comparator": ">",
+                "value": 85,
+                "palette": "white_on_yellow"
+              }
+            ]
+          }
+        ],
+        "title": "Pi Disk Used %",
+        "precision": 1,
+        "custom_unit": "%"
+      },
+      "layout": {
+        "x": 9,
+        "y": 31,
+        "width": 3,
+        "height": 3
+      }
     }
   ],
   "template_variables": [
@@ -245,6 +922,16 @@
       "name": "icao24",
       "prefix": "icao24",
       "default": "*"
+    },
+    {
+      "name": "country",
+      "prefix": "icao_country",
+      "default": "*"
+    },
+    {
+      "name": "host",
+      "prefix": "host",
+      "default": "pi-adsb"
     }
   ],
   "layout_type": "free",
