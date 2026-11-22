@@ -1,7 +1,6 @@
 {
   "schema": "adsbdawg.squawk-contract-fixtures/v1",
-  "status": "SOURCE ONLY — not executed",
-  "head": "cb264f5ed240da2d60ffc1934f71fc04b25dbd5a",
+  "status": "executed by tests/run.nu",
   "assertion_scope": "The expected_metrics field lists required adsb.message and adsb.squawk calls only; other legitimate metrics are not prohibited.",
   "cases": [
     {

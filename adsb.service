@@ -11,7 +11,7 @@ Type=simple
 User=pi
 WorkingDirectory=/home/pi/adsbdawg
 EnvironmentFile=-/etc/adsbdawg/env
-ExecStart=/home/pi/adsbdawg/.venv/bin/python /home/pi/adsbdawg/adsb.py
+ExecStart=/opt/adsbdawg/nu/0.117.0/nu --no-config-file /home/pi/adsbdawg/adsb.nu run
 Restart=always
 RestartSec=10
 TimeoutStartSec=30
@@ -27,7 +27,6 @@ PrivateTmp=true
 LockPersonality=true
 RestrictRealtime=true
 RestrictNamespaces=true
-ReadWritePaths=/home/pi/adsbdawg
 CapabilityBoundingSet=
 
 [Install]

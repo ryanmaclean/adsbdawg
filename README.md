@@ -9,7 +9,7 @@ RTL-SDR USB dongle
        │  (1090 MHz RF)
    dump1090 — TCP :30003 (SBS-1 line protocol)
        │
-   adsb.py  ─── DogStatsD UDP :8125 ─── Datadog Agent ─── Datadog Cloud
+   adsb.nu  ─── DogStatsD UDP :8125 ─── Datadog Agent ─── Datadog Cloud
                    │
                Enriches each message with:
                icao24 · callsign · on_ground · altitude_band · icao_country · squawk
@@ -54,7 +54,8 @@ Squawk queries count the existing adsb.message counter filtered by squawk tag. E
 - [RTL-SDR (RTL2832U) USB dongle](https://www.rtl-sdr.com/buy-rtl-sdr-dvb-t-dongles/)
 - dump1090 listening on TCP port 30003 (SBS-1 format)
 - [Datadog Agent](https://docs.datadoghq.com/agent/) with a valid API key (DogStatsD on `127.0.0.1:8125`)
-- Python 3.7+
+- `nc` (OpenBSD netcat, installed by the setup script)
+- [Nushell](https://www.nushell.sh/) 0.117 (MIT), installed by the setup script from a pinned, checksum-verified release; no Python
 
 ## Quick Start
 
@@ -65,10 +66,10 @@ git clone https://github.com/ryanmaclean/adsbdawg.git /home/$USER/adsbdawg
 cd /home/$USER/adsbdawg
 
 export DD_API_KEY="your_datadog_api_key_here"
-sudo bash setup-raspberry-pi.sh
+sudo --preserve-env=DD_API_KEY sh setup-raspberry-pi.sh
 ```
 
-The script handles: RTL-SDR drivers, kernel module blacklist, USB autosuspend, dump1090, Python virtualenv, Datadog Agent, systemd service, SD card wear optimizations, and NTP check.
+The script handles: RTL-SDR drivers, kernel module blacklist, USB autosuspend, dump1090, pinned Nushell, Datadog Agent (installer verified against a pinned SHA-256 before it runs), systemd service, SD card wear optimizations, and NTP check.
 
 ### 2. Configure receiver location (optional but recommended)
 
@@ -95,13 +96,16 @@ The file is an array of nine templates, not one monitor API payload. Remove the 
 ## Manual Usage
 
 ```bash
-python3 adsb.py [OPTIONS]
+nu adsb.nu run [OPTIONS]      # stream forever, reconnecting with capped backoff
+nu --stdin adsb.nu emit       # SBS-1 lines on stdin -> DogStatsD lines on stdout (debugging)
 
-Options:
+Options for run:
   --host HOST            dump1090 server hostname (env: ADSB_HOST). Default: localhost
   --port PORT            dump1090 SBS-1 port (env: ADSB_PORT). Default: 30003
   --receiver-lat LAT     Receiver latitude for range metrics (env: ADSB_RECEIVER_LAT)
   --receiver-lon LON     Receiver longitude for range metrics (env: ADSB_RECEIVER_LON)
+  --statsd-host HOST     DogStatsD host (env: ADSB_STATSD_HOST). Default: 127.0.0.1
+  --statsd-port PORT     DogStatsD UDP port (env: ADSB_STATSD_PORT). Default: 8125
 ```
 
 ## Dashboard Highlights
@@ -153,40 +157,30 @@ Pre-built monitors in `monitors/adsb_monitors.json`:
 
 ```
 adsbdawg/
-├── adsb.py                    # Collector: connects to dump1090, enriches & emits metrics
-├── sbs1.py                    # SBS-1 message parser (stdlib datetime, IntEnum, __slots__)
-├── requirements.txt           # Python dependencies (datadog>=0.47.0)
+├── adsb.nu                    # Collector: dump1090 -> metrics -> DogStatsD (Nushell)
+├── sbs1.nu                    # SBS-1 message parser (Nushell)
+├── tests/
+│   ├── run.nu                 # parser, producer, squawk contract and DogStatsD wire tests
+│   └── squawk-contract-fixtures.json
 ├── adsb.service               # systemd unit (hardened: NoNewPrivileges, ProtectSystem)
-├── setup-raspberry-pi.sh      # One-shot Raspberry Pi setup script
+├── setup-raspberry-pi.sh      # sh bootstrap: pinned, checksum-verified Nushell, then setup.nu
+├── setup.nu                   # One-shot Raspberry Pi setup (`--dry-run` prints actions)
+├── LICENSE                    # MIT
 ├── dashboards/
 │   └── adsb_dashboard.json    # Datadog dashboard template (30 widgets)
 └── monitors/
     └── adsb_monitors.json     # Datadog monitor configurations (9 monitors)
 ```
 
-## Improvements in This Version
+## Implementation notes
 
-### Ingestion (sbs1.py)
-- **`__slots__`** on `SBS1Message` — reduces GC pressure on high-frequency feeds
-- **DRY `_parse()` helper** — replaces 4 near-identical parse methods
-- **`IntEnum` for `TransmissionType`** — proper enumeration with name/value lookup
-- **stdlib `datetime.strptime`** — replaces `dateutil.parser.parse`; removes external dependency
-- **`__repr__`** — useful for debugging: `SBS1Message(icao24='A1B2C3', callsign='UAL123', alt=35000)`
-- **`toJSON`** — now includes `alert`, `spi`, `transmissionType` fields
+- Parsing and metric construction are pure Nushell functions (`parse-sbs1`, `message-metrics`, `process-line`); only the TCP read and UDP send use `nc`.
+- `nu --no-config-file tests/run.nu` executes the parser, producer, squawk contract fixtures and a loopback DogStatsD wire test. It does not talk to Datadog, a receiver or a Pi.
+- Feed read timeout is `nc -w 30` (idle connections are closed and re-established); backoff grows 5 s to 60 s.
+- DogStatsD datagrams are one per received frame; keep the Agent's `dogstatsd_buffer_size` at its default of 8192 or larger.
+- `adsb.service` runs `/opt/adsbdawg/nu/<version>/nu adsb.nu run` with `NoNewPrivileges`, `ProtectSystem=strict` and `EnvironmentFile=/etc/adsbdawg/env` (group readable by the service user).
+- Active-aircraft gauge: 5-minute unique ICAO24 count updated on incoming aircraft frames, not an independent heartbeat.
 
-### Collection (adsb.py)
-- **TCP readline via `makefile('r')`** — correctly handles partial and concatenated SBS-1 messages
-- **Socket timeout (30s)** — prevents silent hangs on dead connections
-- **Exponential backoff** — retry delay grows from 5s to 60s max instead of hammering
-- **Range metric** — haversine distance from receiver to aircraft (requires `--receiver-lat/lon`)
-- **Active aircraft gauge** — 5-minute unique ICAO24 count updated on incoming aircraft frames, not an independent heartbeat
-- **ICAO country tag** — `icao_country:US`, `icao_country:GB`, etc. on per-frame metrics when ICAO24 is present
-- **Altitude band tag** — `surface`, `approach`, `transition`, `cruise_low`, `cruise_high`
-- **New metrics** — `adsb.alert`, `adsb.spi`, `adsb.onground`, `adsb.message.lag_ms`, `adsb.connection.*`
-- **Connection telemetry** — `adsb.connection.established` / `adsb.connection.error` counters
-- **Env var config** — `ADSB_HOST`, `ADSB_PORT`, `ADSB_RECEIVER_LAT/LON` work alongside CLI flags
-- **`logging.exception()`** — full tracebacks on errors instead of just `str(error)`
+## License
 
-### Infrastructure
-- **`adsb.service`** — virtualenv Python path, `NoNewPrivileges`, `ProtectSystem=strict`, `PrivateTmp`, service dependencies on dump1090 and datadog-agent, `EnvironmentFile`
-- **`setup-raspberry-pi.sh`** — user auto-detection (Bookworm-compatible), `DD_API_KEY` validation, virtualenv creation, udev rule reload, `plugdev` group, USB autosuspend disable, `gpu_mem=16`, journald size limits, NTP sync check, disk space guard, reboot reminder
+MIT, see `LICENSE`.

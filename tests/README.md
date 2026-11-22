@@ -1,7 +1,13 @@
-# Squawk contract fixture source
+# Tests
 
-These declarative cases have not been executed. They specify expectations for the actual SBS1Message parser and log_dawg producer; they are not a replacement implementation or a passing model test. No runner or new dependency is added.
+`nu --no-config-file tests/run.nu` runs, in order:
 
-A permitted remote validation environment must exercise the candidate parser/producer on every input, capture actual DogStatsD datagrams and check gauge/count types plus tags against these expectations. Retain numeric JSON/gauge compatibility, leading zeros in tags, invalid-field rejection, duplicate frame counts, no squawk carry between messages, and sparse frames without callsign. Check unrelated telemetry and the existing socket/service regressions separately.
+1. unit checks of the SBS-1 parser, metric producer, tag hygiene and active-aircraft window;
+2. every case and sequence in `squawk-contract-fixtures.json` (parser squawk, JSON squawk,
+   zero-padded tag, numeric gauge, repeated frames, no carry between frames);
+3. a DogStatsD wire test: a fake dump1090 (`nc -l`) feeds `adsb.nu run`, a fake DogStatsD
+   (`nc -u -l -k`) captures the datagrams, and the received metric lines must equal the
+   in-process metrics line for line.
 
-For integrated acceptance, pass representative real receiver frames through the admitted collector, Agent and intake, then verify dashboard queries and per-object monitor validation against the correct host/device. Count aggregation and time-window behavior require native evidence. This does not authorize live telemetry, deployment or monitoring actions while the session mute and execution gates remain closed.
+`--no-wire` skips step 3 (no `nc`, no sockets). The suite needs only Nushell 0.117 and
+OpenBSD netcat; it does not talk to Datadog.

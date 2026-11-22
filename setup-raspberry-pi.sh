@@ -1,162 +1,58 @@
-#!/usr/bin/env bash
-# setup-raspberry-pi.sh
-# One-shot setup for ADSBDawg on Raspberry Pi OS (Debian-based).
-# Run with: sudo bash setup-raspberry-pi.sh
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Bootstrap for ADSBDawg on Raspberry Pi OS (Debian based). Run as root:
+#   sudo DD_API_KEY=<key> sh setup-raspberry-pi.sh
+#
+# This file only installs Nushell and hands over to setup.nu. Nushell (MIT) is taken
+# from the official nushell/nushell release at a pinned version, and the tarball is
+# verified against a pinned SHA-256 before anything is extracted or executed.
+# To upgrade: change NU_VERSION and the three digests together (the release publishes
+# them in its SHA256SUMS asset), run `nu setup.nu --dry-run`, commit.
+set -eu
 
-set -euo pipefail
+NU_VERSION=0.117.0
+case "$(uname -m)" in
+  aarch64 | arm64)
+    NU_TARGET=aarch64-unknown-linux-musl
+    NU_SHA256=19966b94ae19f52e2cf0402cb99844ddfa06e2361cf6c77b1b2e29abd17e9188 ;;
+  armv7l | armv8l)
+    NU_TARGET=armv7-unknown-linux-musleabihf
+    NU_SHA256=a0a3706dbf31e2f42c0b6ca7d5e73f671f42cdaf6ef56eaf30779ee3d6770c47 ;;
+  x86_64)
+    NU_TARGET=x86_64-unknown-linux-musl
+    NU_SHA256=2b808786d44af41170a29f8b9a15b5113bb6ea5dda9221098eca932f8a149924 ;;
+  *)
+    echo "ERROR: unsupported architecture $(uname -m)" >&2
+    exit 1 ;;
+esac
 
-export DEBIAN_FRONTEND=noninteractive
-export NEEDRESTART_MODE=a
+if [ "$(id -u)" -ne 0 ]; then
+  echo "ERROR: run as root (sudo)." >&2
+  exit 1
+fi
 
-# ── Validation ──────────────────────────────────────────────────────────────
-if [[ -z "${DD_API_KEY:-}" || "${DD_API_KEY}" == "YOUR_DATADOG_API_KEY" ]]; then
-    echo "ERROR: Set DD_API_KEY before running: export DD_API_KEY=<your-key>"
+HERE=$(cd "$(dirname "$0")" && pwd)
+NU_DIR="/opt/adsbdawg/nu/$NU_VERSION"
+NU_BIN="$NU_DIR/nu"
+NU_NAME="nu-$NU_VERSION-$NU_TARGET"
+
+if [ ! -x "$NU_BIN" ] || [ "$("$NU_BIN" --version 2>/dev/null || true)" != "$NU_VERSION" ]; then
+  command -v curl >/dev/null 2>&1 || {
+    apt-get update
+    apt-get install -y --no-install-recommends curl ca-certificates
+  }
+  TMP=$(mktemp -d)
+  trap 'rm -rf "$TMP"' EXIT
+  echo "==> Downloading Nushell $NU_VERSION ($NU_TARGET)"
+  curl --proto '=https' --tlsv1.2 -fsSL -o "$TMP/$NU_NAME.tar.gz" \
+    "https://github.com/nushell/nushell/releases/download/$NU_VERSION/$NU_NAME.tar.gz"
+  echo "$NU_SHA256  $TMP/$NU_NAME.tar.gz" | sha256sum -c - || {
+    echo "ERROR: Nushell checksum mismatch; refusing to run it." >&2
     exit 1
+  }
+  tar -xzf "$TMP/$NU_NAME.tar.gz" -C "$TMP"
+  mkdir -p "$NU_DIR"
+  install -m 0755 "$TMP/$NU_NAME/nu" "$NU_BIN"
 fi
 
-INSTALL_USER="${SUDO_USER:-$(logname 2>/dev/null || echo pi)}"
-INSTALL_DIR="/home/$INSTALL_USER/adsbdawg"
-VENV_DIR="$INSTALL_DIR/.venv"
-DD_SITE="${DD_SITE:-datadoghq.com}"
-BOOT_CONFIG="$( [ -f /boot/firmware/config.txt ] && echo /boot/firmware/config.txt || echo /boot/config.txt )"
-ARCH="$(dpkg --print-architecture)"
-
-echo "==> User: $INSTALL_USER | Install dir: $INSTALL_DIR | Arch: $ARCH"
-
-# ── Disk space check ─────────────────────────────────────────────────────────
-AVAIL_KB=$(df --output=avail / | tail -1)
-if [ "$AVAIL_KB" -lt 524288 ]; then
-    echo "ERROR: Less than 512 MB free on /. Aborting."
-    exit 1
-fi
-
-# ── System packages ──────────────────────────────────────────────────────────
-echo "==> Updating package lists..."
-apt-get update -y
-
-echo "==> Installing RTL-SDR and system tools..."
-apt-get install -y --no-install-recommends rtl-sdr librtlsdr-dev python3 python3-pip python3-venv
-
-# ── RTL-SDR kernel module blacklist ──────────────────────────────────────────
-echo "==> Blacklisting dvb_usb_rtl28xxu kernel module..."
-BLACKLIST_FILE="/etc/modprobe.d/blacklist-rtl.conf"
-if ! grep -q "blacklist dvb_usb_rtl28xxu" "$BLACKLIST_FILE" 2>/dev/null; then
-    echo "blacklist dvb_usb_rtl28xxu" >> "$BLACKLIST_FILE"
-fi
-modprobe -r dvb_usb_rtl28xxu 2>/dev/null || true
-update-initramfs -u -k "$(uname -r)" 2>/dev/null || true
-
-# ── RTL-SDR USB autosuspend disable ──────────────────────────────────────────
-echo "==> Disabling USB autosuspend for RTL-SDR dongle..."
-UDEV_RULE="/etc/udev/rules.d/99-rtlsdr-power.rules"
-cat > "$UDEV_RULE" << 'UDEV'
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", ATTR{power/autosuspend}="-1"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2832", ATTR{power/autosuspend}="-1"
-UDEV
-udevadm control --reload-rules && udevadm trigger --subsystem-match=usb
-
-# ── plugdev group ─────────────────────────────────────────────────────────────
-echo "==> Adding $INSTALL_USER to plugdev group..."
-usermod -aG plugdev "$INSTALL_USER" || true
-
-# ── Presence check ───────────────────────────────────────────────────────────
-lsusb | grep -q "0bda:283" || echo "WARNING: RTL-SDR dongle not detected. Ensure it is connected."
-
-# ── dump1090 ──────────────────────────────────────────────────────────────────
-echo "==> Installing dump1090..."
-if apt-get install -y --no-install-recommends dump1090-fa 2>/dev/null; then
-    DUMP1090_SERVICE="dump1090-fa"
-elif apt-get install -y --no-install-recommends dump1090-mutability 2>/dev/null; then
-    DUMP1090_SERVICE="dump1090-mutability"
-else
-    echo "ERROR: Could not install any dump1090 variant. Add FlightAware apt repo first:"
-    echo "  https://flightaware.com/adsb/piaware/install"
-    exit 1
-fi
-systemctl enable "$DUMP1090_SERVICE" && systemctl start "$DUMP1090_SERVICE"
-
-# ── Python virtualenv ─────────────────────────────────────────────────────────
-echo "==> Creating Python virtualenv at $VENV_DIR..."
-if [ -d "$INSTALL_DIR" ]; then
-    python3 -m venv "$VENV_DIR"
-    "$VENV_DIR/bin/pip" install --upgrade pip --quiet
-    "$VENV_DIR/bin/pip" install -r "$INSTALL_DIR/requirements.txt" --quiet
-    chown -R "$INSTALL_USER:$INSTALL_USER" "$VENV_DIR"
-else
-    echo "WARNING: $INSTALL_DIR not found. Clone the repo there and re-run."
-fi
-
-# ── Datadog Agent ─────────────────────────────────────────────────────────────
-echo "==> Installing Datadog Agent..."
-if ! command -v datadog-agent &>/dev/null; then
-    DD_AGENT_MAJOR_VERSION=7 DD_API_KEY="$DD_API_KEY" DD_SITE="$DD_SITE" \
-        bash -c "$(curl --tlsv1.2 --proto https -fsSL \
-            https://s3.amazonaws.com/dd-agent-bootstrap/scripts/install_script_agent7.sh)"
-else
-    echo "Datadog Agent already installed, skipping."
-fi
-systemctl enable datadog-agent && systemctl start datadog-agent
-
-# ── adsbdawg environment file ─────────────────────────────────────────────────
-echo "==> Writing /etc/adsbdawg/env..."
-mkdir -p /etc/adsbdawg
-chmod 700 /etc/adsbdawg
-cat > /etc/adsbdawg/env << ENV
-ADSB_HOST=localhost
-ADSB_PORT=30003
-# Set these for range metrics (decimal degrees):
-# ADSB_RECEIVER_LAT=37.7749
-# ADSB_RECEIVER_LON=-122.4194
-ENV
-chmod 600 /etc/adsbdawg/env
-
-# ── systemd service ───────────────────────────────────────────────────────────
-echo "==> Installing adsbdawg systemd service..."
-if [ -f "$INSTALL_DIR/adsb.service" ]; then
-    UNIT_FILE="/etc/systemd/system/adsbdawg.service"
-    sed "s|/home/pi/adsbdawg|$INSTALL_DIR|g; s|User=pi|User=$INSTALL_USER|g" \
-        "$INSTALL_DIR/adsb.service" > "$UNIT_FILE"
-    systemctl daemon-reload
-    systemctl enable adsbdawg.service
-    systemctl start adsbdawg.service
-    echo "adsbdawg service started."
-else
-    echo "WARNING: $INSTALL_DIR/adsb.service not found."
-fi
-
-# ── Pi performance tweaks ─────────────────────────────────────────────────────
-echo "==> Applying Raspberry Pi optimizations..."
-if ! grep -q "^gpu_mem=" "$BOOT_CONFIG" 2>/dev/null; then
-    echo "gpu_mem=16" >> "$BOOT_CONFIG"
-fi
-if ! grep -q "^dtoverlay=disable-bt" "$BOOT_CONFIG" 2>/dev/null; then
-    echo "dtoverlay=disable-bt" >> "$BOOT_CONFIG"
-fi
-
-# ── journald SD card wear reduction ──────────────────────────────────────────
-JOURNALD_CONF="/etc/systemd/journald.conf.d/adsbdawg.conf"
-mkdir -p "$(dirname "$JOURNALD_CONF")"
-cat > "$JOURNALD_CONF" << 'JCONF'
-[Journal]
-SystemMaxUse=50M
-RuntimeMaxUse=20M
-RateLimitBurst=200
-RateLimitIntervalSec=30s
-JCONF
-systemctl restart systemd-journald
-
-# ── NTP check ─────────────────────────────────────────────────────────────────
-timedatectl show | grep -q "NTPSynchronized=yes" \
-    || echo "WARNING: NTP not yet synchronized — ADS-B timestamps may be incorrect until sync."
-
-echo ""
-echo "==> Setup complete! A reboot is recommended to apply the RTL-SDR module blacklist."
-echo ""
-echo "Verify:"
-echo "  systemctl status $DUMP1090_SERVICE"
-echo "  systemctl status adsbdawg"
-echo "  systemctl status datadog-agent"
-echo "  journalctl -u adsbdawg -f"
-echo ""
-echo "Import dashboards/adsb_dashboard.json in Datadog:"
-echo "  Dashboards > New Dashboard > Import JSON"
+exec "$NU_BIN" --no-config-file "$HERE/setup.nu" --nu-bin "$NU_BIN" "$@"
